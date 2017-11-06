@@ -1,0 +1,157 @@
+
+<div class="edit-combat">
+  <h1>Combat Prototype</h1>
+  <p>To add cards or change values click <a href="https://docs.google.com/spreadsheets/d/1yBUc2IP7qUAPaSgA6h4309ePg1DSlz_XPRM6QmtsSLk/edit#gid=0">here</a>, edit the file and refresh the this page. Please do not reformat the layout of the excel sheet.</p>
+</div>
+
+<canvas id="canvas" width="1020" height="720"></canvas>
+
+<div class="list">
+  <h2>Past Moves</h2>
+  <ul>
+
+  </ul>
+</div>
+
+
+
+<script type="text/javascript">
+  let usership;
+  let enemyship;
+  let FPS = 1000/30;
+
+  window.onload=function(){
+    loadData(function(data){
+      if(data === null)
+        return;
+
+      usership = data.U;
+      enemyship = data.E;
+      usership.currentMana = 0;
+      enemyship.currentMana = 0;
+
+      shipSetUp(usership, enemyship, function(){
+        canvas = document.getElementById('canvas');
+        cc = canvas.getContext('2d');
+        canvas.addEventListener('click', checkClicked);
+        setInterval(update, FPS);
+      });
+    });
+  }
+
+  function loadData(callback){
+    $.ajax({
+      method: 'GET',
+      url: '/getships',
+      success: function(data){
+        if(data != 'failed'){
+          callback(data);
+        }
+        else{
+          callback(null);
+        }
+      },
+      error: function(error){
+        console.log(error);
+        callback(null);
+      }
+    });
+  }
+
+  function update(){
+    enemyAI(enemyship);
+
+    cc.fillStyle='black';
+    cc.fillRect(0,0,canvas.width,canvas.height);
+
+    manaBars();
+
+    fillText();
+    fillCards();
+    fillCardText();
+  }
+
+  function manaBars(){
+    cc.fillStyle='white';
+    cc.font = "18px Arial";
+    cc.fillText("Mana: " + Math.floor(usership.currentMana), 10, 100);
+    cc.fillText("Mana: " + Math.floor(enemyship.currentMana), canvas.width-240, 100);
+
+    cc.fillStyle='yellow';
+    cc.fillRect(90, 87, usership.currentMana * 10 , 10);
+    cc.fillRect(canvas.width-160, 87, enemyship.currentMana * 10 , 10);
+
+    if(usership.currentMana < usership.mana)
+      usership.currentMana += usership.manaCharge/FPS;
+    if(enemyship.currentMana < enemyship.mana)
+      enemyship.currentMana += enemyship.manaCharge/FPS;
+  }
+
+  function fillCards(){
+    cc.fillStyle = 'brown';
+
+    let n = parseInt(usership.handsize) + 1;
+    let filler = 100 / n;
+    let cardSize = (canvas.width - 100) / usership.handsize;
+
+    for(let i = 0; i < usership.handsize; i++){
+      let left = i*cardSize + (i+1)*filler,
+       top = canvas.height - 400,
+       right = cardSize,
+       bottom = 390;
+
+      cc.fillRect(left, top, right, bottom);
+    }
+  }
+
+  function checkClicked(event){
+    let x = event.pageX;
+    let y = event.pageY;
+
+    let filler = 100 / (parseInt(usership.handsize) + 1);
+    let cardSize = (canvas.width - 100) / usership.handsize;
+
+    for(let i = 0; i < usership.handsize; i++){
+      let left = i*cardSize + (i+1)*filler + 55,
+       top = canvas.height - 400,
+       right = cardSize + left,
+       bottom = 390 + top;
+
+       //If click is selected in roughly the area of each individual card
+       if(y > top && y < bottom && x > left && x < right){
+         if(usership.currentHand[i].manacost < usership.currentMana){
+           useCardFromHand(i, usership);
+         }
+       }
+    }
+  }
+
+  function fillCardText(){
+    cc.fillStyle='white';
+    cc.font = "18px Arial";
+
+    let n = parseInt(usership.handsize) + 1;
+    let filler = 100 / n;
+    let cardSize = (canvas.width - 100) / usership.handsize;
+    let userHand = usership.currentHand;
+
+    for(let i = 0; i < usership.handsize; i++){
+      let spacing = (i+1)*filler + 5 + (i*cardSize);
+      cc.fillText(userHand[i].name, spacing, 375);
+      cc.fillText(userHand[i].manacost, spacing + (cardSize - 20), 345)
+      cc.fillText('Effect : '+ userHand[i].effect, spacing, 450);
+      cc.fillText('Effect Amount : '+ userHand[0].effectAmount, spacing, 500);
+      cc.fillText('Duration : ' + userHand[i].duration, spacing, 625);
+      cc.fillText('Delay : ' + userHand[i].delay, spacing, 650)
+    }
+  }
+
+  function fillText(){
+    cc.fillStyle='white';
+    cc.font = "24px Arial";
+    cc.fillText('User HP: '+ usership.hp, 10, 50);
+    cc.fillText('Enemy HP: '+ enemyship.hp,canvas.width-240, 50);
+    cc.fillText('User Crew HP: '+ usership.chp, 10, 75);
+    cc.fillText('Enemy Crew HP: '+ enemyship.chp,canvas.width-240, 75);
+  }
+</script>
